@@ -1,6 +1,5 @@
 #pyinstaller -F .\classroom\class.py
-import code
-import pandas as pd
+import threading
 from selenium import webdriver
 from datetime import datetime
 import time
@@ -11,11 +10,9 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
-
-
 opt=Options()
 on=inclass=peopleon=False
-w=datetime.today().isoweekday()
+day=datetime.today().isoweekday()
 
 opt.add_experimental_option("prefs", { \
     "profile.default_content_setting_values.media_stream_mic": 1, 
@@ -23,89 +20,113 @@ opt.add_experimental_option("prefs", { \
     "profile.default_content_setting_values.notifications": 1 
   })
 
-def google(mail,password,classnum): 
+def google(mail,password,data): 
   global chrome
+  schedule = data[str(day)]
+  scode = data['subject_code']
+  mcode = data['meet_code']
   chrome=webdriver.Chrome(chrome_options=opt)
-  # chrome.get("https://accounts.google.com/signin/v2/identifier?passive=1209600&continue=https%3A%2F%2Faccounts.google.com%2F%3Fhl%3Dzh-TW&followup=https%3A%2F%2Faccounts.google.com%2F%3Fhl%3Dzh-TW&hl=zh-TW&flowName=GlifWebSignIn&flowEntry=ServiceLogin")
+  chrome.get("https://accounts.google.com/signin")
+  emailweb=chrome.find_element_by_id("identifierId")
+  emailweb.send_keys(mail)
+  login1=chrome.find_element_by_xpath("//*[@id='identifierNext']/div/button/span")
+  login1.click()  
 
-  # emailweb=chrome.find_element_by_id("identifierId")
-  # emailweb.send_keys(mail)
-  # login1=chrome.find_element_by_xpath("//*[@id='identifierNext']/div/button/span")
-  # login1.click()  
+  passwordweb = WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.NAME, "password")))
+  chrome.implicitly_wait(1)
+  passwordweb.send_keys(password)
 
-  # passwordweb = WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.NAME, "password")))
-  # chrome.implicitly_wait(1)
-  # passwordweb.send_keys(password)
+  login2=chrome.find_element_by_xpath("//*[@id='passwordNext']/div/button")
+  login2.click()
+  time.sleep(5)
+  rscode = {a:b for b,a in scode.items()}
+  nowclass = get_nowclass()
 
-  # login2=chrome.find_element_by_xpath("//*[@id='passwordNext']/div/button")
-  # login2.click()
-  # time.sleep(5)
-
-  code=get_meetcode(classnum,8)#get_nowclass())
-  print(code)
-  if(code!=-1):
-    classjoin("ss:"+code)
+  if(nowclass[0]!=-1):
+    try:
+      classjoin(mcode[rscode[schedule[nowclass[0]]]])
+    except:
+      chrome.close()
+      return rscode[schedule[nowclass[0]]]
   else:
     chrome.close()
     return 0
   
+  # code=get_meetcode(classnum,8)#get_nowclass())
+  # print(code)
+  # if(code!=-1):
+  #   classjoin(code)
+  # else:
+  #   chrome.close()
+  #   return 0
   # if on:
   #   classjoin(gmeet)
 
-def get_meetcode(classnum,classnow):
-  print(classnow)
-  if(classnow==-1):
-    code = False
-  else:
-    code = pd.read_excel('meet_code.xlsx',sheet_name=classnum[0])
-  return code[int(classnum)][int(classnow)]
+# def get_meetcode(classnum,classnow):
+#   if(classnow==-1):
+#     code = False
+#   else:
+#     code = pd.read_excel('meet_code.xlsx',sheet_name=classnum[0])
+#   return code[int(classnum)][int(classnow)]
 
 def get_nowclass():
   onclass = ['08:05','09:10','10:10','11:10','13:00','14:00','15:00']
   offclass = ['08:55','10:00','11:00','12:00','13:50','14:50','15:50']
   now = str(datetime.now().time())
   classnow = 0
-  for i in onclass:
-    classnow +=1
+  class_status = False
+  for i in offclass:
     if (now < i):
+      if(now > onclass[classnow]):
+        class_status = True      
       break
+    classnow +=1
   else:
     classnow = -1
-  return classnow
+  return classnow,class_status
 
-def classjoin(s):
+def classjoin(code):
+  print(code)
   global on,inclass,peopleon
   on=True
-  try:
-    chrome.get(meet[s])
-  except:
-    return
+  chrome.get("https://meet.google.com/"+code)
   try:
     WebDriverWait(chrome, 3).until(EC.presence_of_element_located((By.XPATH, "//*[@id='yDmH0d']/c-wiz/div/div/div[2]/div/div")))
   except:
-    camera=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='yDmH0d']/c-wiz/div/div/div[9]/div[3]/div/div/div[4]/div/div/div[1]/div[1]/div/div[4]/div[2]/div/div")))
+    camera=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/c-wiz/div/div/div[10]/div[3]/div/div[1]/div[3]/div/div/div[1]/div[1]/div/div[4]/div[2]/div/div[1]")))
     camera.click()
-    mic=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='yDmH0d']/c-wiz/div/div/div[9]/div[3]/div/div/div[4]/div/div/div[1]/div[1]/div/div[4]/div[1]/div/div/div")))
+    mic=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/c-wiz/div/div/div[10]/div[3]/div/div[1]/div[3]/div/div/div[1]/div[1]/div/div[4]/div[1]/div/div/div[1]")))
     mic.click()
-    join=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div.uArJ5e.UQuaGc.Y5sE8d.uyXBBb.xKiqt')))
+    join=WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'span.VfPpkd-vQzf8d:nth-child(4)')))
     join.click()
     inclass=True
     time.sleep(5)
-    #classquit()
-    peopleon=True
-    return
-  google(s)
+    t = threading.Thread(target=check_onlinenum)
+    t.start()
 
+def check_onlinenum():
+  while True:
+    # try:
+    people=int(chrome.find_element_by_xpath("/html/body/div[1]/c-wiz/div[1]/div/div[10]/div[3]/div[10]/div[3]/div[3]/div/div/div[2]/div/div").text)
+    if people<15:
+      classquit()
+      break
+    # except:
+    #   pass
+    print(people)
+    time.sleep(10)
+    
 def classquit():
-  global inclass
-  try:
-    quit=chrome.find_element_by_xpath("//*[@id='ow3']/div[1]/div/div[9]/div[3]/div[10]/div[2]/div/div[6]/span/button")
-  except:
-    inclass=False
-    return
+  quit=chrome.find_element_by_xpath("/html/body/div[1]/c-wiz/div[1]/div/div[10]/div[3]/div[10]/div[2]/div/div[6]/span/button")
   quit.click()
-  inclass=False
+  try:
+    quit1 = chrome.find_element_by_xpath("//*[@id='yDmH0d']/div[3]/div[2]/div/div[2]/button[1]/span")
+    quit1.click()
+  except:
+    pass
 
+if(__name__=='__main__'):
+  print("請使用gui.py啟動")
 # schedule.every().day.at('08:05').do(job,1)
 # schedule.every().day.at('09:10').do(job,2)
 # schedule.every().day.at('10:10').do(job,3)
