@@ -1,4 +1,6 @@
 from datetime import datetime
+from os import remove
+from re import S
 import meet
 import json
 import tkinter as tk
@@ -9,11 +11,16 @@ window = tk.Tk()
 window.title("classroom輔助程式")
 window.iconbitmap('icon.ico')
 
+icon = tk.PhotoImage(file="setting.png")
+plus_img = tk.PhotoImage(file='plus.png')
+minus_img = tk.PhotoImage(file='minus.png')
+save_img = tk.PhotoImage(file='save.png')
+
 with open('config.json','r',encoding='utf-8') as f :
     data = json.load(f)
     subject = [i for i in data['subject_code']]
-# subject = ['國','英','數','化學','物理','歷史','公民','美術','虎崗']
 
+week = ['星期一','星期二','星期三','星期四','星期五']
 day = datetime.today().isoweekday()
 subject_temp = ['國']
 
@@ -22,7 +29,7 @@ subject_temp = ['國']
 #         data = json.load(f)
 #     return data
 
-def set_option():
+def set_option(day=day):
     slist = data[str(day)]
     rsubdc = {a:b for b,a in data['subject_code'].items()}
     var = [tk.StringVar() for _ in range(7)]
@@ -39,7 +46,7 @@ def set_option():
         pass
     return var
 
-def set_optionmenu():
+def set_optionmenu(var):
     group = tk.LabelFrame(window,text="今日課表")
     group.grid(column=3,row=0,rowspan=7)
     for i in range(7):
@@ -48,12 +55,13 @@ def set_optionmenu():
 
 def setdefault():
     global e1,e2,e3,box1,box2,o1
+    
     code = tk.StringVar(value=subject[1])
     T = tk.Label(window,text=" 請輸入學生Google帳號",font=('Arial',20))
     e1 = tk.Entry(window,width=20)
     e2 = tk.Entry(window,width=20,show='*')
     e3 = tk.Entry(window,width=20)
-    e3.var = tk.StringVar()
+    e3.var = tk.StringVar(value=data['meet_code']['國'])
     e3.config(textvariable=e3.var)
     t1 = tk.Label(window,text="帳號")
     t2 = tk.Label(window,text="密碼")
@@ -63,6 +71,7 @@ def setdefault():
     box1 = tk.Checkbutton(window,text="顯示密碼",command=toggle_password,onvalue=True,offvalue=False)
     box2 = tk.Checkbutton(window,text="記住密碼",onvalue=True,offvalue=False)
     b1 = tk.Button(window,text="啟動程式",command=button_click,bg='green',fg='white',width=15)
+    b2 = tk.Button(window,image=icon,relief="flat",command=setting)
     box1.var = tk.BooleanVar()
     box1.config(variable=box1.var)
     box2.var = tk.BooleanVar()
@@ -80,6 +89,7 @@ def setdefault():
     box1.grid(column=0,row=4,columnspan=2)
     box2.grid(column=0,row=5,columnspan=2)
     b1.grid(column=0,row=6,columnspan=2)
+    b2.grid(column=0,row=4)
 
     try:
         with open('temp') as f:
@@ -93,8 +103,40 @@ def setdefault():
             e2.insert(0,password)
     except:
         pass
+
+def setting():
+    global setting_data,setting_window,listbox
+    setting_window = tk.Toplevel()
+    setting_window.title("設定") 
+    setting_data = []
+    tk.Label(setting_window,text="一周課表設定區",bg='green',fg='white',font=('Microsoft YaHei',20)).grid(column=0,row=0,columnspan=5)
     
-    refresh_classcode(subject[1])
+    for i in range(5):
+        setting_data.append(set_option(i+1))
+        group = tk.LabelFrame(setting_window,text=week[i])
+        group.grid(column=i,row=1,rowspan=7)
+        for j in range(7):
+            t = tk.OptionMenu(group, setting_data[i][j], *subject)
+            t.pack()
+
+    listbox = tk.Listbox(setting_window)
+    for i in data['subject_code'].keys():
+        listbox.insert(tk.END,i)
+    listbox.grid(column=6,row=1,rowspan=5,columnspan=5)
+    tk.Button(setting_window,image=plus_img,relief='flat',command=add_listbox).grid(column=6,row=7)
+    tk.Button(setting_window,image=minus_img,relief='flat',command=remove_listbox).grid(column=7,row=7)
+    tk.Button(setting_window,image=save_img,relief='flat',command=setting_save_click).grid(column=8,row=7)
+
+def add_listbox():
+    print(listbox.get(0,tk.END))
+def remove_listbox():
+    select = listbox.curselection()
+    listbox.delete(select[0])
+    
+def setting_save_click():
+    savedata(0)
+    setting_window.destroy()
+    popup('info',"儲存成功")
 
 def refresh_classcode(subject):
     temp = e3.get()
@@ -111,10 +153,25 @@ def refresh_classcode(subject):
         data['meet_code'].update({pre_subject:temp})
     subject_temp.pop(0)
     with open('config.json','w+',encoding='utf-8') as f :
+        json.dump(data,f,indent=1)
+
+def savedata(type):
+    if(type == 1):
+        data['meet_code'][o1.var] = e3.get()
+    else:
+        num = 1
+        for i in setting_data:
+            temp = [data['subject_code'][t.get()] for t in i]
+            data[str(num)]=temp
+            num+=1
+        for i in listbox.get(0,tk.END):
+            data['subjectcode']
+        
+    with open('config.json','w+',encoding='utf-8') as f :
         json.dump(data,f,indent=3)
 
 def button_click():
-    refresh_classcode(o1.var)
+    savedata(1)
     account = e1.get()
     password = e2.get()
     if(account==''):
@@ -127,7 +184,11 @@ def button_click():
             f.write(encoded(account)+'\n')
             if box2.var.get():
                 f.write(encoded(password))
-        status = meet.google(account,password,data)
+
+        if (meet.google(account,password)==0):
+            popup('error','帳號密碼有誤')
+
+        status = meet.get_code()
         if(status==0):
             popup('error','現在已經是晚上了\n不要在玩我了')
         elif(type(status)==str):
@@ -138,6 +199,7 @@ def encoded(code):
 
 def decoded(code):
     return cryptocode.decrypt(code,"box159951")
+
 def popup(type,text):
     if(type=="error"):
         tkm.showerror('錯誤',text)
@@ -151,11 +213,9 @@ def toggle_password():
         e2.config(show='*')
 
 setdefault()
-var = set_option()
-set_optionmenu()
+set_optionmenu(set_option())
 
-if(var==6 or 7):
+if(day==6 or day==7):
     popup('info','今天不是上課日')
 
 window.mainloop()
-
