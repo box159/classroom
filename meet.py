@@ -48,22 +48,23 @@ def get_code():
   schedule = data[str(day)]
   scode = data['subject_code']
   mcode = data['meet_code']
-  rscode = {a:b for b,a in scode.items()}
+  # rscode = {a:b for b,a in scode.items()}
   nowclass = get_nowclass()
 
   if(nowclass[0]!=-1):
     try:
-      classjoin(mcode[rscode[schedule[nowclass[0]]]])
+      classjoin(mcode[schedule[nowclass[0]]])
     except:
       chrome.close()
-      return rscode[schedule[nowclass[0]]]
+      return schedule[nowclass[0]]
   else:
     chrome.close()
     return 0
 
 def get_nowclass():
-  onclass = ['08:05','09:10','10:10','11:10','13:00','14:00','15:00']
-  offclass = ['08:55','10:00','11:00','12:00','13:50','14:50','15:50']
+  data = get_data()
+  onclass = data['ontime']
+  offclass = data['offtime']
   now = str(datetime.now().time())
   classnow = 0
   class_status = False
