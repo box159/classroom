@@ -4,4 +4,7 @@ test.py
 class copy.py
 temp
 config copy.json
-temp
+dist
+build
+__pycache__
+gui.spec
